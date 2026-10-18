@@ -467,7 +467,7 @@ observe() { # canonical GitHub URL -> normalized JSON
               | {token:((._signal + ":") + (.id|tostring) + ":" + (.updated_at // .submitted_at // "") + ":" + (.state // "")),
                  type:._signal,source:.html_url,head:.commit_id,
                  author:.user.login,body:(.body // "" | .[:500])}
-                 + (if (.author_association | IN("OWNER","MEMBER","COLLABORATOR")) then {} else {review_bot:true} end)
+                 + (if (.user.login | IN($bots[])) then {review_bot:true} else {} end)
                  + (if $track then {at:$at,
                    # A resolved inline thread counts as answered.
                    unanswered:(if ._signal == "review-comment" then

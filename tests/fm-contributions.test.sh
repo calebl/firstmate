@@ -242,7 +242,7 @@ test_review_bot_inline_wake() {
     || fail 'could not register the owned delivery'
   registered_checks "$home" >/dev/null
   jq -n --arg head "$HEAD_A" '[
-    {id:21,user:{login:"greptile-apps[bot]"},author_association:"NONE",commit_id:$head,
+    {id:21,user:{login:"greptile-apps[bot]"},author_association:"COLLABORATOR",commit_id:$head,
       body:"P1: unchecked error",html_url:"https://github.com/o/r/pull/8#discussion_r21",updated_at:"2026-09-16T08:01:00Z"},
     {id:22,user:{login:"passerby"},author_association:"NONE",commit_id:$head,
       body:"drive-by",html_url:"https://github.com/o/r/pull/8#discussion_r22",updated_at:"2026-09-16T08:02:00Z"}]' \
@@ -257,7 +257,7 @@ test_review_bot_inline_wake() {
   with_home "$home" "$ROOT/bin/fm-contributions.sh" snapshot "$home/input.json" --all \
     | jq -e '.rows[0].actor == "fleet" and .rows[0].reason == "incoming review-bot finding needs triage"' >/dev/null \
     || fail 'a review-bot finding must route to the fleet'
-  pass 'a listed review bot inline comment becomes a pending fleet signal; an outside account does not'
+  pass 'a listed collaborator bot becomes a pending fleet signal; an outside account does not'
 }
 
 test_review_bot_allowlist_is_configurable() {
