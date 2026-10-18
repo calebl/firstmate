@@ -261,24 +261,27 @@ test_review_bot_inline_wake() {
 }
 
 test_review_bot_allowlist_is_configurable() {
-  local home
+  local home config out
   home=$(new_home review-bot-config)
+  config="$home/review-config"
   forge_home "$home"
-  mkdir -p "$home/config"
-  printf '# none\n\n' > "$home/config/contribution-review-bots"
+  mkdir -p "$config"
+  printf 'custom-review[bot]\n' > "$config/contribution-review-bots"
   with_home "$home" "$ROOT/bin/fm-pr-check.sh" delivery https://github.com/o/r/pull/8 >/dev/null \
     || fail 'could not register the owned delivery'
+  with_home "$home" env FM_CONFIG_OVERRIDE="$config" "$ROOT/bin/fm-contributions.sh" arm >/dev/null \
+    || fail 'could not arm the contribution check with its review-bot config'
   registered_checks "$home" >/dev/null
-  jq -n '[{id:31,user:{login:"greptile-apps[bot]"},author_association:"NONE",body:"note",
-    html_url:"https://github.com/o/r/pull/8#issuecomment-31",updated_at:"2026-09-16T08:01:00Z"}]' > "$home/forge/comments.json"
+  jq -n '[
+    {id:31,user:{login:"custom-review[bot]"},author_association:"NONE",body:"configured",
+      html_url:"https://github.com/o/r/pull/8#issuecomment-31",updated_at:"2026-09-16T08:01:00Z"},
+    {id:32,user:{login:"greptile-apps[bot]"},author_association:"NONE",body:"not configured",
+      html_url:"https://github.com/o/r/pull/8#issuecomment-32",updated_at:"2026-09-16T08:02:00Z"}]' > "$home/forge/comments.json"
   registered_checks "$home" >/dev/null
-  with_home "$home" "$ROOT/bin/fm-contributions.sh" pending | jq -e 'length == 0' >/dev/null \
-    || fail 'an allowlist without Greptile must not admit Greptile'
-  printf 'greptile-apps[bot]\n' > "$home/config/contribution-review-bots"
-  registered_checks "$home" >/dev/null
-  with_home "$home" "$ROOT/bin/fm-contributions.sh" pending | jq -e 'length == 1' >/dev/null \
-    || fail 'a configured review bot must be admitted'
-  pass 'the review-bot allowlist is read from config'
+  out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" pending)
+  printf '%s' "$out" | jq -e 'length == 1 and .[0].author == "custom-review[bot]"' >/dev/null \
+    || fail "the armed check did not retain its configured review-bot allowlist: $out"
+  pass 'the armed check retains its configured review-bot allowlist'
 }
 
 test_missing_lane_remains_missing() {
