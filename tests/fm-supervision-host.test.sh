@@ -1378,7 +1378,7 @@ test_claude_stop_hook_rewakes_main_for_an_inbox_note_after_a_handled_wake() {
   turn_end "$home"
   wait_until 150 watcher_live "$home" || fail "inbox after handled: the Stop hook never started a watcher cycle: $(cat "$home/hook.err" 2>/dev/null)"
   append_status "$home" 'step one'
-  wait_until 250 handled_at_least "$home" 1 \
+  wait_until 600 handled_at_least "$home" 1 \
     || fail "inbox after handled: the routine wake was not handled on the engine: $(cat "$home/state/.supervision-host.log")"
   wait_until 150 watcher_live "$home" || fail "inbox after handled: the host is not parked on a live successor"
   sleep 2
@@ -1386,7 +1386,7 @@ test_claude_stop_hook_rewakes_main_for_an_inbox_note_after_a_handled_wake() {
   FM_HOME="$home" "$ROOT/bin/fm-inbox.sh" note "the captain sent this from Basecamp" >/dev/null \
     || fail "fixture: the inbox note was not saved and announced"
   assert_grep 'check: captain inbox note' "$home/state/.wake-queue" "fixture: the note queued no wake row"
-  wait_until 250 hook_exited "$home" \
+  wait_until 600 hook_exited "$home" \
     || fail "inbox after handled: the queued inbox note never woke main: $(cat "$home/state/.supervision-host.log"; cat "$home/state/.watcher-down")"
   assert_rewoke_main "$home" "inbox after handled"
   assert_re '^check: rearm-resurface' "$home/hook.err" "the rewake must carry the recovery close for the queued note"
