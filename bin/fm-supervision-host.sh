@@ -77,8 +77,11 @@
 # releases the branch's leases and grant, and counts the wake handled only
 # when that turn exited cleanly, recorded a durable report
 # (bin/fm-branch-report.sh), and left none of its granted rows in the wake
-# queue. A handled wake with only routine outcomes never wakes
-# main, and neither does any handled wake while away: captain outcomes wait in
+# queue. Before parking after a handled turn, it settles the successor handoff;
+# docs/watcher-continuity.md "Durable queue and turn-end backstop" owns how
+# that transition makes rows still queued for main recoverable. A handled wake
+# with only routine outcomes never wakes main, and neither does any handled
+# wake while away: captain outcomes wait in
 # the outcome store for the return drain's BRANCH OUTCOMES section. A handled
 # attended wake that recorded a captain outcome exits with one "supervision-host: branch-outcome:"
 # line naming its store rows, without the close it handled; main drains, where

@@ -127,7 +127,7 @@ A handled wake with only routine outcomes never reaches main.
 A handled wake that recorded a captain outcome while the captain is still attended exits with one `supervision-host: branch-outcome:` line naming its store rows, without the close it handled; see [Captain outcomes](#captain-outcomes).
 A turn that fails hands its close to main with one `supervision-host:` line, as away.
 Main-only rows that share the queue with the branch's rows stay queued for main, which is woken for each on its own triggering close, as on Pi.
-A row another script appends after the predecessor closes, including before the successor initializes or while the host is parked, gets that close from the handling successor ([handling successor](watcher-continuity.md#durable-queue-and-turn-end-backstop)), and it reaches main as a main-only pass-through.
+The [handling-successor recovery contract](watcher-continuity.md#durable-queue-and-turn-end-backstop) guarantees that a main-only row appended after the predecessor closes, including before the successor initializes or while the host is parked, reaches main as a pass-through.
 The engine turn runs beside a captain who is present, so its guarded actions take the task leases that keep it and main off the same task.
 
 ### Away
@@ -168,7 +168,7 @@ On each actionable close the engine takes, the host runs these steps:
 3. It runs one bounded engine turn with the branch prompt and the wake message carrying, attended, the dialog mirror and, away, the record's read-back.
    The engine drains, handles, reports through `bin/fm-branch-report.sh`, and acknowledges, exactly as the Pi branch does.
 4. It releases the branch's leases and grant, whether or not the wake was handled.
-5. It parks on the successor only for a handled wake.
+5. For a handled wake, it settles the handling-successor recovery transition and then parks on that successor.
    A main-only pass-through is not a park: the host exits after leaving that cycle running, as [Attended](#attended) describes.
 
 The host counts the wake handled only when all three hold:

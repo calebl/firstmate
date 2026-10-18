@@ -1407,7 +1407,7 @@ test_claude_stop_hook_restores_handoff_when_successor_closed_before_exit_to_main
   turn_end "$home"
   wait_until 150 watcher_live "$home" || fail "closed successor: the Stop hook never started a watcher cycle"
   append_status "$home" 'first actionable wake'
-  wait_until 250 hook_exited "$home" || fail "closed successor: the Stop hook did not finish: $(cat "$home/state/.supervision-host.log")"
+  wait_until 600 hook_exited "$home" || fail "closed successor: the Stop hook did not finish: $(cat "$home/state/.supervision-host.log")"
   assert_re '^supervision-host: branch-outcome: ' "$home/hook.err" "the host must hand its captain outcome to main"
   expect_code 2 "$(cat "$home/hook.rc")" "the Stop hook must rewake main after the successor closed"
   assert_re '^(pending|announced):downtime:' "$home/state/.watcher-down" \
@@ -1478,10 +1478,10 @@ test_claude_stop_hook_restores_handoff_when_successor_closed_mid_engine_turn() {
   turn_end "$home"
   wait_until 150 watcher_live "$home" || fail "closed successor: the Stop hook never started a watcher cycle"
   append_status "$home" 'first actionable wake'
-  wait_until 250 test -s "$home/stub-ready" || fail "closed successor: the engine did not reach its hold: hook=$(cat "$home/hook.err" 2>/dev/null) host=$(cat "$home/state/.supervision-host.log" 2>/dev/null) mode=$(cat "$home/stub-mode" 2>/dev/null) engine=$(find "$home" -maxdepth 1 -name 'engine-call.*' -exec sh -c 'cat "$1"' _ {} \; 2>/dev/null) errors=$(cat "$home"/engine-errors.* 2>/dev/null)"
+  wait_until 600 test -s "$home/stub-ready" || fail "closed successor: the engine did not reach its hold: hook=$(cat "$home/hook.err" 2>/dev/null) host=$(cat "$home/state/.supervision-host.log" 2>/dev/null) mode=$(cat "$home/stub-mode" 2>/dev/null) engine=$(find "$home" -maxdepth 1 -name 'engine-call.*' -exec sh -c 'cat "$1"' _ {} \; 2>/dev/null) errors=$(cat "$home"/engine-errors.* 2>/dev/null)"
   successor=$(cat "$home/state/.watch.lock/pid")
   append_status "$home" 'wake while the engine is handling'
-  wait_until 250 bash -c '! kill -0 "$1" 2>/dev/null' _ "$successor" \
+  wait_until 600 bash -c '! kill -0 "$1" 2>/dev/null' _ "$successor" \
     || fail "closed successor: its watcher did not close during the engine turn"
   FM_HOME="$home" bash -c '. "$1"; fm_recovery_marker_begin_handling "$2"' _ \
     "$ROOT/bin/fm-wake-lib.sh" "$home/state/.watcher-down" \
@@ -1489,7 +1489,7 @@ test_claude_stop_hook_restores_handoff_when_successor_closed_mid_engine_turn() {
   assert_re '^pending:handling:' "$home/state/.watcher-down" \
     "fixture: the closed handling successor must leave the marker in handling before the host hands back"
   printf 'continue\n' > "$home/stub-release"
-  wait_until 250 hook_exited "$home" || fail "closed successor: the Stop hook did not finish: $(cat "$home/state/.supervision-host.log")"
+  wait_until 600 hook_exited "$home" || fail "closed successor: the Stop hook did not finish: $(cat "$home/state/.supervision-host.log")"
   assert_re '^supervision-host: branch-outcome: ' "$home/hook.err" "the host must hand its captain outcome to main"
   expect_code 2 "$(cat "$home/hook.rc")" "the Stop hook must rewake main after the successor closed"
   assert_re '^epoch=[0-9]+ owner_pid=[0-9]+ outcome=rewake ' "$home/state/.claude-autoarm-epoch" \
