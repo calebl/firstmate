@@ -1193,6 +1193,9 @@ while :; do
   fi
 
   # Handled: park on the successor.
+  if ! fm_recovery_marker_handling_settled "$STATE/.watcher-down"; then
+    exit_to_main "the supervision session handled this wake, but its successor handoff could not be settled; drain any rows still queued for main"
+  fi
   ARM_PID=$SUCCESSOR_PID
   ARM_OUT=$SUCCESSOR_OUT
   SUCCESSOR_PID=

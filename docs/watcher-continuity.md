@@ -195,7 +195,9 @@ So a finished, hung, or identity-mismatched claim cannot suppress that recovery 
 The recovery-episode contract below owns once-per-generation announcement.
 A handling successor does not re-announce.
 It enters its poll loop immediately and keeps scanning signals, stale panes, and checks.
-A durable row appended after it started rode no delivered wake, so while such a row is still queued the successor closes once with the recovery wake; that is how a captain inbox note reaches main while the supervision host is parked on a handled wake's successor.
+After the supervision host finishes a handled turn, it settles the successor handoff under the durable-queue and recovery-marker locks.
+Any row left for main then becomes a recoverable downtime episode, including one appended after the predecessor closed but before the successor initialized or the host confirmed its handoff.
+The successor closes once with the recovery wake only while that row is still queued; this is how a captain inbox note reaches main during startup or while the host is parked on the handled wake's successor.
 
 ### Manual recovery and other harnesses
 
@@ -469,7 +471,7 @@ They also prove that a legacy or handoff-phase watcher marker from an absent rep
 
 - The once-per-generation announcement bound with the real Pi extension against a refused handling handshake.
 - A handling successor that must surface a real crew event instead of going blind.
-- A handling successor that resurfaces a row appended after it started, but not one already consumed.
+- A handling successor that resurfaces a row appended between its predecessor's close and its own startup handoff.
 
 `tests/fm-watch-triage.test.sh` proves TERM stops a watcher blocked inside a poll's pane capture and still releases its lock and records an acknowledgeable stop.
 It also exercises a single TERM with a live foreign downtime-marker lock holder, retained stale singleton and subsequent arm-style recovery, including decimal `08` and zero `00` cleanup bounds.
