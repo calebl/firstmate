@@ -222,5 +222,73 @@ test_handling_successor_does_not_go_blind() {
   pass "a resurfacing handling successor stays alive and supervises instead of going blind"
 }
 
+# T3: a handling successor must still resurface a durable row appended after it
+# started, such as a captain inbox note queued while the supervision host parks
+# on a handled wake's successor, and must not resurface one that was already
+# consumed before it looked.
+test_handling_successor_resurfaces_a_row_appended_after_it_started() {
+  local dir home state fakebin child now out
+  dir=$(make_case recovery-later-append)
+  home="$dir/home"
+  state="$dir/state"
+  fakebin="$dir/fakebin"
+  mkdir -p "$home/data"
+  printf 'pending:handling:later.1.aaa\n' > "$state/.watcher-down"
+  chmod 600 "$state/.watcher-down"
+  printf '%s\t1\tstale\tfm-demo\tstale: fm-demo (the delivered wake)\n' "$(date +%s)" > "$state/.wake-queue"
+  printf '1\n' > "$state/.wake-queue.seq"
+  out="$dir/watch.out"
+  PATH="$fakebin:$PATH" FM_HOME="$home" FM_STATE_OVERRIDE="$state" \
+    FM_POLL=1 FM_SIGNAL_GRACE=0 FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=600 \
+    FM_WATCH_HANDLING_SUCCESSOR=1 "$WATCH" > "$out" 2>&1 &
+  child=$!
+  now=0
+  while [ "$now" -lt 40 ]; do
+    [ "$(cat "$state/.watch.lock/pid" 2>/dev/null || true)" = "$child" ] && break
+    sleep 0.1
+    now=$((now + 1))
+  done
+  [ "$(cat "$state/.watch.lock/pid" 2>/dev/null || true)" = "$child" ] \
+    || { kill -TERM "$child" 2>/dev/null || true; fail "handling successor did not take the watcher lock"; }
+
+  # An append the supervision session consumed before the successor looked.
+  FM_HOME="$home" FM_STATE_OVERRIDE="$state" bash -c '
+    . "$1"
+    fm_wake_append signal demo.status "signal: demo.status" || exit 1
+    fm_lock_acquire_wait "$FM_WAKE_QUEUE_LOCK" || exit 1
+    awk -F "\t" "\$2 != 2" "$FM_WAKE_QUEUE" > "$FM_WAKE_QUEUE.tmp" && mv -f "$FM_WAKE_QUEUE.tmp" "$FM_WAKE_QUEUE"
+    fm_lock_release "$FM_WAKE_QUEUE_LOCK"
+  ' _ "$ROOT/bin/fm-wake-lib.sh" || { kill -TERM "$child" 2>/dev/null || true; fail "fixture: consumed append failed"; }
+  sleep 3
+  kill -0 "$child" 2>/dev/null \
+    || fail "handling successor closed for a row that was already consumed: $(cat "$out")"
+  ! grep -F 'check: rearm-resurface' "$out" >/dev/null \
+    || { kill -TERM "$child" 2>/dev/null || true; fail "handling successor resurfaced a consumed row: $(cat "$out")"; }
+
+  FM_HOME="$home" FM_STATE_OVERRIDE="$state" bash -c '
+    . "$1"
+    fm_wake_append check inbox:n1 "check: captain inbox note n1 - from Basecamp"
+  ' _ "$ROOT/bin/fm-wake-lib.sh" || { kill -TERM "$child" 2>/dev/null || true; fail "fixture: inbox append failed"; }
+  now=0
+  while [ "$now" -lt 40 ] && kill -0 "$child" 2>/dev/null; do
+    sleep 0.25
+    now=$((now + 1))
+  done
+  if kill -0 "$child" 2>/dev/null; then
+    kill -TERM "$child" 2>/dev/null || true
+    wait "$child" 2>/dev/null || true
+    fail "handling successor never resurfaced a row appended after it started: $(cat "$out"; cat "$state/.watcher-down")"
+  fi
+  wait "$child" 2>/dev/null || true
+  [ "$(grep -c '^check: rearm-resurface$' "$out")" -eq 1 ] \
+    || fail "handling successor did not close once with the recovery wake: $(cat "$out")"
+  grep "$(printf '\tcheck\tinbox:n1\t')" "$state/.wake-queue" >/dev/null \
+    || fail "the resurfaced inbox row must stay queued for the drain"
+  grep -E '^(pending|announced):downtime:' "$state/.watcher-down" >/dev/null \
+    || fail "the resurfaced close must leave a deliverable downtime episode: $(cat "$state/.watcher-down")"
+  pass "a handling successor resurfaces a row appended after it started, but not one already consumed"
+}
+
 test_handling_successor_does_not_go_blind
+test_handling_successor_resurfaces_a_row_appended_after_it_started
 test_unacknowledged_recovery_is_announced_once_per_generation

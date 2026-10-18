@@ -3172,6 +3172,53 @@ done
 if [ -n "$EVICTED_PID" ]; then
   echo "watcher: replaced stalled pid $EVICTED_PID (beacon ${EVICTED_BEAT_AGE}s past hard bound ${WATCHER_STALL_BOUND}s)"
 fi
+# A handling successor never re-announces the episode its predecessor already
+# delivered, but a durable row appended after it started rode no delivered wake:
+# a captain inbox note queued while the supervision host parks on a handled
+# wake's successor reached no one until an unrelated close. So the successor
+# records the newest queued sequence at its start and resurfaces once when a
+# newer row is still queued; a newer row already consumed only moves the mark.
+HANDLING_SUCCESSOR_SEQ=0
+handling_successor_newest_seq_locked() {  # Sets HANDLING_SUCCESSOR_NEWEST.
+  local seq=
+  { IFS= read -r seq < "$STATE/.wake-queue.seq"; } 2>/dev/null || true
+  case "$seq" in ''|*[!0-9]*) seq=0 ;; esac
+  HANDLING_SUCCESSOR_NEWEST=$seq
+  [ -e "$FM_WAKE_QUEUE" ] || return 0
+  HANDLING_SUCCESSOR_NEWEST=$(awk -F '\t' -v newest="$seq" '
+    NF >= 5 && $2 ~ /^[0-9]+$/ && $2 + 0 > newest + 0 { newest = $2 }
+    END { print newest + 0 }
+  ' "$FM_WAKE_QUEUE" 2>/dev/null) || return 1
+}
+handling_successor_baseline() {
+  fm_lock_acquire_wait "$FM_WAKE_QUEUE_LOCK" || return 1
+  if ! handling_successor_newest_seq_locked; then
+    fm_lock_release "$FM_WAKE_QUEUE_LOCK"
+    return 1
+  fi
+  fm_lock_release "$FM_WAKE_QUEUE_LOCK"
+  HANDLING_SUCCESSOR_SEQ=$HANDLING_SUCCESSOR_NEWEST
+}
+handling_successor_has_newer_row() {
+  local seq='' queued
+  # Unlocked and fork-free on every poll: only a moved append sequence pays
+  # for the locked queue read below.
+  { IFS= read -r seq < "$STATE/.wake-queue.seq"; } 2>/dev/null || true
+  case "$seq" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$seq" != "$HANDLING_SUCCESSOR_SEQ" ] || return 1
+  fm_lock_acquire_wait "$FM_WAKE_QUEUE_LOCK" || return 1
+  queued=
+  if [ -e "$FM_WAKE_QUEUE" ]; then
+    queued=$(awk -F '\t' -v since="$HANDLING_SUCCESSOR_SEQ" '
+      NF >= 5 && $2 ~ /^[0-9]+$/ && $2 + 0 > since + 0 { print "newer"; exit }
+    ' "$FM_WAKE_QUEUE" 2>/dev/null) || queued=error
+  fi
+  if [ -z "$queued" ] && handling_successor_newest_seq_locked; then
+    HANDLING_SUCCESSOR_SEQ=$HANDLING_SUCCESSOR_NEWEST
+  fi
+  fm_lock_release "$FM_WAKE_QUEUE_LOCK"
+  [ "$queued" = newer ]
+}
 WATCHER_RECOVERY_PENDING=0
 if [ -n "${FM_LOCK_RECOVERED_PID:-}" ]; then
   WATCHER_RECOVERY_PENDING=1
@@ -3189,6 +3236,10 @@ if ! fm_recovery_marker_arm_check "$WATCHER_DOWNTIME_MARKER"; then
 fi
 if [ "${FM_WATCH_HANDLING_SUCCESSOR:-0}" = 1 ]; then
   WATCHER_RECOVERY_PENDING=0
+  handling_successor_baseline || {
+    echo "watcher: wake queue could not be read safely" >&2
+    exit 1
+  }
 elif [ "$FM_RECOVERY_MARKER_ACTION" = recover ]; then
   WATCHER_RECOVERY_PENDING=1
 fi
@@ -3348,9 +3399,15 @@ rerecord_device_shifted_pr_poll() {  # <id>
 resurface_after_downtime() {
   # Handling successors already have a predecessor-delivered wake on the way.
   # Re-announcing from this cycle is what turned a lost handshake into an
-  # unbounded recovery loop; stay in the poll loop and supervise instead.
+  # unbounded recovery loop; stay in the poll loop and supervise instead,
+  # resurfacing only a row appended after this successor started.
   if [ "${FM_WATCH_HANDLING_SUCCESSOR:-0}" = 1 ]; then
-    return 0
+    handling_successor_has_newer_row || return 0
+    if ! fm_recovery_marker_arm_check "$WATCHER_DOWNTIME_MARKER"; then
+      echo "watcher: recovery state could not be consumed safely" >&2
+      exit 1
+    fi
+    wake "check: rearm-resurface"
   fi
   if [ "$WATCHER_RECOVERY_PENDING" -ne 1 ]; then
     if ! fm_recovery_marker_arm_check "$WATCHER_DOWNTIME_MARKER"; then
