@@ -1,0 +1,60 @@
+{
+  "scenario": "default Greptile findings",
+  "pending": [
+    {
+      "token": "comment:101:2026-09-16T08:01:00Z:",
+      "type": "comment",
+      "source": "https://github.com/o/r/pull/8#issuecomment-101",
+      "head": null,
+      "author": "greptile-apps[bot]",
+      "body": "issue comment finding",
+      "review_bot": true,
+      "task": "delivery",
+      "url": "https://github.com/o/r/pull/8"
+    },
+    {
+      "token": "review-comment:103:2026-09-16T08:03:00Z:",
+      "type": "review-comment",
+      "source": "https://github.com/o/r/pull/8#discussion_r103",
+      "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "author": "greptile-apps[bot]",
+      "body": "inline finding from installed app",
+      "review_bot": true,
+      "task": "delivery",
+      "url": "https://github.com/o/r/pull/8"
+    },
+    {
+      "token": "review:102:2026-09-16T08:02:00Z:COMMENTED",
+      "type": "review",
+      "source": "https://github.com/o/r/pull/8#pullrequestreview-102",
+      "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "author": "greptile-apps[bot]",
+      "body": "review finding",
+      "review_bot": true,
+      "task": "delivery",
+      "url": "https://github.com/o/r/pull/8"
+    }
+  ],
+  "wake_count": 3,
+  "routing": {
+    "actor": "fleet",
+    "reason": "incoming review-bot finding needs triage"
+  }
+}
+{
+  "scenario": "persistent custom allowlist",
+  "pending": [
+    {
+      "token": "comment:201:2026-09-16T08:01:00Z:",
+      "type": "comment",
+      "source": "https://github.com/o/r/pull/8#issuecomment-201",
+      "head": null,
+      "author": "custom-review[bot]",
+      "body": "configured finding",
+      "review_bot": true,
+      "task": "delivery",
+      "url": "https://github.com/o/r/pull/8"
+    }
+  ],
+  "wake_count": 1
+}
