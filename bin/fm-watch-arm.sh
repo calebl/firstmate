@@ -210,14 +210,11 @@ cycle_signal_name() {
 }
 
 cycle_log_append() {
-  local exit_code=$1 signal=$2 reason=$3 successor=$4 ended_at beacon_age lock_after size tmp raw i delivery_seq=none
+  local exit_code=$1 signal=$2 reason=$3 successor=$4 ended_at beacon_age lock_after size tmp raw i
   [ "$cycle_active" -eq 1 ] || return 0
   ended_at=$(date +%s)
   beacon_age=$(fm_path_age "$BEAT")
   lock_after=$(lock_snapshot)
-  if cycle_delivered_reason; then
-    delivery_seq=$DELIVERED_SEQ
-  fi
 
   i=0
   while ! fm_lock_try_acquire "$CYCLE_LOG_LOCK"; do
@@ -225,7 +222,7 @@ cycle_log_append() {
     sleep 0.02
     i=$((i + 1))
   done
-  printf 'arm_pid=%s\twatcher_pid=%s\torigin=%s\tstarted_at=%s\tended_at=%s\texit_code=%s\tsignal=%s\treason=%s\tbeacon_age=%s\tlock_before=%s\tlock_after=%s\tdelivery_seq=%s\tsuccessor=%s\n' \
+  printf 'arm_pid=%s\twatcher_pid=%s\torigin=%s\tstarted_at=%s\tended_at=%s\texit_code=%s\tsignal=%s\treason=%s\tbeacon_age=%s\tlock_before=%s\tlock_after=%s\tsuccessor=%s\n' \
     "$ARM_PID" \
     "$(cycle_clean_field "$cycle_watcher_pid")" \
     "$(cycle_clean_field "$cycle_origin")" \
@@ -237,7 +234,6 @@ cycle_log_append() {
     "$beacon_age" \
     "$(cycle_clean_field "$cycle_lock_before")" \
     "$(cycle_clean_field "$lock_after")" \
-    "$(cycle_clean_field "$delivery_seq")" \
     "$(cycle_clean_field "$successor")" >> "$CYCLE_LOG" 2>/dev/null || true
 
   size=$(wc -c < "$CYCLE_LOG" 2>/dev/null | tr -d '[:space:]')
@@ -350,15 +346,13 @@ fail_unexplained_cycle() {
   return 1
 }
 
-# Read the reason and queue boundary the current cycle's watcher recorded in
-# the bounded terminal-delivery ledger before releasing its lock. Older
-# three-column records remain readable with a zero boundary.
+# Read the reason the current cycle's watcher recorded in the bounded
+# terminal-delivery ledger it publishes before releasing its lock. Sets
+# DELIVERED_REASON; fails when no record matches the cycle's pid and identity.
 DELIVERED_REASON=
-DELIVERED_SEQ=0
 cycle_delivered_reason() {
-  local i clean_identity record_pid record_identity record_seq record_reason
+  local i clean_identity record_pid record_identity record_reason
   DELIVERED_REASON=
-  DELIVERED_SEQ=0
   clean_identity=$(printf '%s' "$cycle_watcher_identity" | tr '\t\r\n' '   ')
   i=0
   while ! fm_lock_try_acquire "$WATCH_DELIVERY_LOCK"; do
@@ -367,13 +361,9 @@ cycle_delivered_reason() {
     i=$((i + 1))
   done
   if [ -f "$WATCH_DELIVERY_LOG" ]; then
-    while IFS=$'\t' read -r record_pid record_identity record_seq record_reason; do
-      case "$record_seq" in
-        ''|*[!0-9]*) record_reason=$record_seq; record_seq=0 ;;
-      esac
+    while IFS=$'\t' read -r record_pid record_identity record_reason; do
       if [ "$record_pid" = "$cycle_watcher_pid" ] && [ "$record_identity" = "$clean_identity" ]; then
         DELIVERED_REASON=$record_reason
-        DELIVERED_SEQ=$record_seq
       fi
     done < "$WATCH_DELIVERY_LOG"
   fi
@@ -688,26 +678,11 @@ child_out=$(mktemp "$STATE/.watch-arm-output.XXXXXX") || {
   echo "watcher: FAILED - no live watcher with a fresh beacon"
   exit 1
 }
-HANDLING_BASELINE_SEQ=0
-if [ -n "${FM_WATCH_PREDECESSOR_ARM_PID:-}" ]; then
-  HANDLING_BASELINE_SEQ=$(awk -F '\t' -v arm="arm_pid=$FM_WATCH_PREDECESSOR_ARM_PID" '
-    $1 == arm {
-      for (i = 1; i <= NF; i += 1) {
-        if ($i ~ /^delivery_seq=[0-9]+$/) {
-          value = $i
-          sub(/^delivery_seq=/, "", value)
-        }
-      }
-    }
-    END { print value + 0 }
-  ' "$CYCLE_LOG" 2>/dev/null) || HANDLING_BASELINE_SEQ=0
-fi
 # date(1) exposes whole seconds. Keep the configured confirmation budget from
 # collapsing when startup begins just before the next second boundary.
 deadline=$(( $(date +%s) + CONFIRM_TIMEOUT + 1 ))
 if [ -n "${FM_WATCH_PREDECESSOR_ARM_PID:-}" ]; then
-  FM_WATCH_HANDLING_SUCCESSOR=1 FM_WATCH_HANDLING_BASELINE_SEQ="$HANDLING_BASELINE_SEQ" \
-    "$WATCH" >"$child_out" &
+  FM_WATCH_HANDLING_SUCCESSOR=1 "$WATCH" >"$child_out" &
 else
   "$WATCH" >"$child_out" &
 fi

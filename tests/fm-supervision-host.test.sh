@@ -1599,6 +1599,7 @@ test_successor_left_at_the_turn_survives_the_hook_process_group_teardown() {
   wait_until 250 hook_exited "$home" || fail "at-turn teardown: the Stop hook never closed: $(cat "$home/state/.supervision-host.log")"
   [ "$(cat "$home/offer-count" 2>/dev/null)" -ge 2 ] || fail "fixture: the close was not accepted before it turned main-only"
   assert_rewoke_main "$home" "at-turn teardown"
+  main_drain_and_ack "$home"
   watcher=$(cat "$home/state/.watch.lock/pid")
   kill -TERM -- "-$(cat "$home/hook.pgid")" 2>/dev/null || true
   sleep 2

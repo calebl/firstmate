@@ -13,9 +13,9 @@
 #   2. a main-only status event passes through the host and leaves a live
 #      successor watcher, and the hook's rewake (ledger outcome=rewake, banner
 #      delivered) starts a primary turn that drains and acknowledges it;
-#   3. that turn's end re-arms supervision, and a second main-only event is
-#      delivered the same way, including when the new host takes ownership of
-#      the pass-through successor before continuing on its own watcher;
+#   3. that turn's end arms onto the successor, and a second main-only event is
+#      delivered the same way; it closes that successor, so the successor's own
+#      close is read instead of left in an unread capture;
 #   4. a remote-reply listener, reading a local append-only log that stands in
 #      for a remote home, stays owned throughout and delivers a third event;
 #   5. a routine close on another task that the host accepts for the
@@ -367,7 +367,12 @@ run_positive() {
   wait_until "$TURN_POLLS" acked_since "$lab" "$e2" \
     || fail "positive: the idle primary was not woken for event 2"$'\n'"$(diagnose "$lab")"
   [ -n "$(rewakes_since "$lab" "$e2")" ] || fail "positive: no Stop-hook rewake reached the transcript for event 2"
-  evidence "positive step 3/4: the second close was delivered after re-arm: rewake at $(rewakes_since "$lab" "$e2" | head -n 1); host log: $(host_log_since "$lab" "$e2" '	pass-through	' | head -n 1 | cut -f1-4)"
+  line=$(grep -F "watcher_pid=$successor	" "$lab/fm/state/.watch-cycle-exits.log" | tail -n 1)
+  # The turn end's arm follows the successor rather than owning it, so its
+  # delivery of the successor's close reads attached-delivered-wake.
+  case "$line" in *'reason=attached-delivered-wake'*) ;; *) fail "positive: the arm following successor $successor did not deliver its close on event 2: $line" ;; esac
+  evidence "positive step 3/4: successor $successor closed: $(printf '%s' "$line" | cut -f1-8 | tr '\t' ' ')"
+  evidence "positive step 3/4: its close was delivered: rewake at $(rewakes_since "$lab" "$e2" | head -n 1); host log: $(host_log_since "$lab" "$e2" '	pass-through	' | head -n 1 | cut -f1-4)"
   listener_live "$lab" || fail "positive: the stand-in remote listener lost its owner by event 2"$'\n'"$(diagnose "$lab")"
   wait_until "$TURN_POLLS" turn_idle "$lab" "$e2" || fail "positive: the event 2 turn never ended"$'\n'"$(diagnose "$lab")"
   wait_until "$TURN_POLLS" host_log_since "$lab" "$e2" '	start	gen=' >/dev/null \
@@ -422,7 +427,7 @@ run_positive() {
   [ "$(captain_prompts "$lab")" = 1 ] || fail "positive: a captain prompt was submitted after setup"
   evidence "positive: captain prompts after setup: 0 (mirror holds only the setup prompt)"
   stop_lab "$lab"
-  pass "attended live ($CLAUDE_VERSION): an idle primary is woken for four hand-offs, including after successor take-over and when a close turns main-only at its turn, with the listener owned throughout"
+  pass "attended live ($CLAUDE_VERSION): an idle primary is woken for four hand-offs, the successor's own close and a close that turned main-only at its turn included, with the listener owned throughout"
 }
 
 # The negative control: the same first event on the control ref's host must

@@ -3172,16 +3172,10 @@ done
 if [ -n "$EVICTED_PID" ]; then
   echo "watcher: replaced stalled pid $EVICTED_PID (beacon ${EVICTED_BEAT_AGE}s past hard bound ${WATCHER_STALL_BOUND}s)"
 fi
-handling_successor_has_newer_row() {
-  local baseline=${FM_WATCH_HANDLING_BASELINE_SEQ:-0} queued=1
-  case "$baseline" in ''|*[!0-9]*) baseline=0 ;; esac
+handling_successor_has_queued_row() {
+  local queued=1
   fm_lock_acquire_wait "$FM_WAKE_QUEUE_LOCK" || return 1
-  if [ -s "$FM_WAKE_QUEUE" ] && awk -F '\t' -v since="$baseline" '
-    NF >= 5 && $2 ~ /^[0-9]+$/ && $2 + 0 > since + 0 { found = 1; exit }
-    END { exit(found ? 0 : 1) }
-  ' "$FM_WAKE_QUEUE" 2>/dev/null; then
-    queued=0
-  fi
+  [ ! -s "$FM_WAKE_QUEUE" ] || queued=0
   fm_lock_release "$FM_WAKE_QUEUE_LOCK"
   return "$queued"
 }
@@ -3370,7 +3364,7 @@ resurface_after_downtime() {
       exit 1
     fi
     [ "$FM_RECOVERY_MARKER_ACTION" = recover ] || return 0
-    handling_successor_has_newer_row || return 0
+    handling_successor_has_queued_row || return 0
     wake "check: rearm-resurface"
   fi
   if [ "$WATCHER_RECOVERY_PENDING" -ne 1 ]; then
