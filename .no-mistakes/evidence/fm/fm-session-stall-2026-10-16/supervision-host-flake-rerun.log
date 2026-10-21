@@ -1,0 +1,4 @@
+$ focused: test_successor_left_at_the_turn_survives_the_hook_process_group_teardown
+ok - host+hook: a successor closed before exit_to_main does not suppress the branch-outcome rewake
+ok - host+hook: a successor that closes during a held engine turn does not suppress the branch-outcome rewake
+not ok - at-turn teardown: the successor watcher (pid 757002) did not survive the hook's process group teardown
