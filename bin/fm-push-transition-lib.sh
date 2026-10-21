@@ -43,9 +43,17 @@ watch_delivery_clean_reason() {
 watch_delivery_publish() {
   # Identity/reason cleaning are sequential $(): sibling $() args to one
   # printf are a bash 5.2 parse-error landmine when a CHLD trap is set.
-  local reason=$1 i size tmp raw ident cleaned_reason
+  # Capture the queue sequence before publishing the close. A successor uses
+  # this exact boundary to ignore the row this watcher delivered while still
+  # noticing every row appended during successor startup.
+  local reason=$1 i size tmp raw ident cleaned_reason queue_seq=
   [ -n "$FM_WATCH_DELIVERY_PID" ] || return 0
   [ -n "$FM_WATCH_DELIVERY_IDENTITY" ] || return 0
+  if fm_lock_acquire_wait "$FM_WAKE_QUEUE_LOCK"; then
+    { IFS= read -r queue_seq < "$STATE/.wake-queue.seq"; } 2>/dev/null || true
+    fm_lock_release "$FM_WAKE_QUEUE_LOCK"
+  fi
+  case "$queue_seq" in ''|*[!0-9]*) queue_seq=0 ;; esac
   i=0
   while ! fm_lock_try_acquire "$WATCH_DELIVERY_LOCK"; do
     [ "$i" -lt 20 ] || return 0
@@ -54,9 +62,10 @@ watch_delivery_publish() {
   done
   ident=$(watch_delivery_clean_identity "$FM_WATCH_DELIVERY_IDENTITY")
   cleaned_reason=$(watch_delivery_clean_reason "$reason")
-  printf '%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\n' \
     "$FM_WATCH_DELIVERY_PID" \
     "$ident" \
+    "$queue_seq" \
     "$cleaned_reason" >> "$WATCH_DELIVERY_LOG" 2>/dev/null || true
   size=$(wc -c < "$WATCH_DELIVERY_LOG" 2>/dev/null | tr -d '[:space:]')
   case "$size" in
