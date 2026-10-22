@@ -108,11 +108,11 @@
 # New maintainer comments/reviews (OWNER, MEMBER, COLLABORATOR, excluding the
 # contribution author) and issue transitions to ready-for-pr persist as pending
 # before any wake. On a PR, comments, reviews and inline review comments whose
-# author login is listed in config/contribution-review-bots (one exact login
-# per line; blank and # lines ignored) are admitted too, marked review_bot:true;
-# an absent file means greptile-apps[bot], an empty one admits no bot. A
-# review-bot finding is fleet triage for the owning home, never a maintainer
-# verdict or merge authority. poll appends ordinary durable check wakes through fm-wake-lib
+# author login is listed in the effective config/contribution-review-bots (one
+# exact login per line; blank and # lines ignored) are admitted too, marked
+# review_bot:true; an absent file means greptile-apps[bot], an empty one admits
+# no bot. A review-bot finding is fleet triage for the owning home, never a
+# maintainer verdict or merge authority. poll appends ordinary durable check wakes through fm-wake-lib
 # and emits only newly durable signals for the authenticated check to surface.
 # ack removes
 # only the named pending token. A crash after enqueue can duplicate a wake but
@@ -123,6 +123,9 @@
 # no review-thread read, tracks no threads and raises no "unanswered" signal,
 # and records carry no threads[] entry. arm copies a set value into the
 # generated check, as it does FM_CONTRIBUTIONS_BUDGET, so the watcher honors it.
+# arm also resolves FM_CONFIG_OVERRIDE against its working directory and embeds
+# the absolute effective config directory, so later polls keep the same bot
+# allowlist regardless of their working directory or ambient override.
 # With it set, acknowledging a signal never ends tracking of its thread. On an
 # open pull request, each maintainer inline review comment and each maintainer
 # review in state CHANGES_REQUESTED is an unanswered thread until the
