@@ -43,7 +43,8 @@ def tracked_threads($previous; $events; $new_tokens; $now_iso):
     | (.token | split(":") | .[:2] | join(":")) as $key
     | {key:$key,type,source,author,at:(.at // null),
        raised:(([$previous[]? | select(.key == $key) | .raised] | first)
-         // (if .token | IN($new_tokens[]) then $now_iso else null end))}];
+         // (if .token | IN($new_tokens[]) then $now_iso else null end))}
+      + (if .review_bot == true then {review_bot:true} else {} end)];
 def due_threads($threads; $now; $age):
   [$threads[] | (.at | try fromdateiso8601 catch null) as $at
     | select($at != null and ($now - $at) >= $age
@@ -52,7 +53,8 @@ def reraise_event($thread; $now; $now_iso):
   duration_text($now - ($thread.at | fromdateiso8601)) as $age
   | {token:("unanswered:" + $thread.key + ":" + $now_iso),type:"unanswered",thread:$thread.key,
      source:$thread.source,head:null,author:$thread.author,age:$age,
-     body:("no reply from the contribution author for " + $age)};
+     body:("no reply from the contribution author for " + $age)}
+    + (if $thread.review_bot == true then {review_bot:true} else {} end);
 def known($input; $saved):
   ([($input.tasks // [])[] | select(.kind != "secondmate")
      | select(.pr.url | canonical_url) | {task:.id,url:.pr.url}]

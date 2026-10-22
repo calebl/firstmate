@@ -235,7 +235,7 @@ test_review_wake() { test_incoming_signal review; }
 test_inline_wake() { test_incoming_signal inline; }
 
 test_review_bot_inline_wake() {
-  local home out
+  local home out token
   home=$(new_home review-bot)
   forge_home "$home"
   with_home "$home" "$ROOT/bin/fm-pr-check.sh" delivery https://github.com/o/r/pull/8 >/dev/null \
@@ -243,7 +243,8 @@ test_review_bot_inline_wake() {
   registered_checks "$home" >/dev/null
   jq -n --arg head "$HEAD_A" '[
     {id:21,user:{login:"greptile-apps[bot]"},author_association:"COLLABORATOR",commit_id:$head,
-      body:"P1: unchecked error",html_url:"https://github.com/o/r/pull/8#discussion_r21",updated_at:"2026-09-16T08:01:00Z"},
+      body:"P1: unchecked error",html_url:"https://github.com/o/r/pull/8#discussion_r21",
+      created_at:"2026-09-16T08:01:00Z",updated_at:"2026-09-16T08:01:00Z"},
     {id:22,user:{login:"passerby"},author_association:"NONE",commit_id:$head,
       body:"drive-by",html_url:"https://github.com/o/r/pull/8#discussion_r22",updated_at:"2026-09-16T08:02:00Z"}]' \
     > "$home/forge/inline.json"
@@ -257,20 +258,31 @@ test_review_bot_inline_wake() {
   with_home "$home" "$ROOT/bin/fm-contributions.sh" snapshot "$home/input.json" --all \
     | jq -e '.rows[0].actor == "fleet" and .rows[0].reason == "incoming review-bot finding needs triage"' >/dev/null \
     || fail 'a review-bot finding must route to the fleet'
-  pass 'a listed collaborator bot becomes a pending fleet signal; an outside account does not'
+  token=$(printf '%s' "$out" | jq -er '.[0].token') || fail 'the review-bot signal had no token'
+  with_home "$home" "$ROOT/bin/fm-contributions.sh" ack delivery https://github.com/o/r/pull/8 "$token" >/dev/null \
+    || fail 'the review-bot signal could not be acknowledged'
+  poll_at "$home" 2026-09-17T09:01:00Z >/dev/null || fail 'the unanswered review-bot thread was not polled again'
+  out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" pending)
+  printf '%s' "$out" | jq -e 'length == 1 and .[0].type == "unanswered" and .[0].review_bot == true' >/dev/null \
+    || fail "the re-raised review-bot finding lost its classification: $out"
+  with_home "$home" env FM_CONTRIBUTIONS_NOW=2026-09-17T09:01:00Z \
+    "$ROOT/bin/fm-contributions.sh" snapshot "$home/input.json" --all \
+    | jq -e '.rows[0].reason == "incoming review-bot finding needs triage"' >/dev/null \
+    || fail 'a re-raised review-bot finding must still route as review-bot triage'
+  pass 'a listed collaborator bot and its re-raise remain review-bot fleet signals'
 }
 
 test_review_bot_allowlist_is_configurable() {
   local home config out
   home=$(new_home review-bot-config)
-  config="$home/review-config"
+  config=review-config
   forge_home "$home"
-  mkdir -p "$config"
-  printf 'custom-review[bot]\n' > "$config/contribution-review-bots"
+  mkdir -p "$home/$config"
+  printf 'custom-review[bot]\n' > "$home/$config/contribution-review-bots"
   with_home "$home" "$ROOT/bin/fm-pr-check.sh" delivery https://github.com/o/r/pull/8 >/dev/null \
     || fail 'could not register the owned delivery'
-  with_home "$home" env FM_CONFIG_OVERRIDE="$config" "$ROOT/bin/fm-contributions.sh" arm >/dev/null \
-    || fail 'could not arm the contribution check with its review-bot config'
+  (cd "$home" && with_home "$home" env FM_CONFIG_OVERRIDE="$config" "$ROOT/bin/fm-contributions.sh" arm >/dev/null) \
+    || fail 'could not arm the contribution check with its relative review-bot config'
   registered_checks "$home" >/dev/null
   jq -n '[
     {id:31,user:{login:"custom-review[bot]"},author_association:"NONE",body:"configured",
