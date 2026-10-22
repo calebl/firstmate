@@ -1,0 +1,32 @@
+Live product poll against GitHub public PR:
+{
+  "bot": [
+    {
+      "task": "omarchy-13212",
+      "url": "https://github.com/omacom/omarchy/pull/13212",
+      "type": "review-comment",
+      "source": "https://github.com/omacom/omarchy/pull/13212#discussion_r4308149471",
+      "author": "greptile-apps[bot]",
+      "review_bot": true,
+      "body": "<a href=\"#\"><img alt=\"P2\" src=\"https://greptile-static-assets.s3.amazonaws.com/badges/p2.svg?v=9\" align=\"top\"></a> **Unnamed buttons pass the check**\n\nThe naming lint skips any `Button` whose explicit `text` is not a glyph, including `text: \"\"`. Thus `Button { iconText: \"\\ue900\"; text: \"\" }` passes without a name, even though `Button.accessibleName` resolves to an empty string. This leaves a gap in the check meant to catch unnamed controls for screen-reader users.\n\nOnly skip buttons with non-emp"
+    }
+  ],
+  "outsider_signal_count": 0
+}
+Projected owner routing:
+{
+  "row": {
+    "task": "omarchy-13212",
+    "url": "https://github.com/omacom/omarchy/pull/13212",
+    "actor": "fleet",
+    "reason": "incoming review-bot finding needs triage",
+    "bot_signals": [
+      {
+        "type": "review-comment",
+        "source": "https://github.com/omacom/omarchy/pull/13212#discussion_r4308149471",
+        "author": "greptile-apps[bot]",
+        "review_bot": true
+      }
+    ]
+  }
+}
