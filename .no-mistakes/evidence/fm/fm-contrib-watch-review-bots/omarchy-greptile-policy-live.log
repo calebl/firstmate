@@ -1,0 +1,7 @@
+Live configurable review-bot policy evidence
+Armed with relative config from disposable lab working directory.
+Executed generated check from worktree with conflicting ambient override.
+Initial matched signal: {"source":"https://github.com/omacom/omarchy/pull/13212#discussion_r4308149471","author":"greptile-apps[bot]","review_bot":true,"token":"review-comment:4308149471:2026-10-18T18:17:59Z:"}
+Pending target count after empty-then-restored allowlist: 0
+Wake output after exclusion: 
+Wake output after restoration: 

@@ -1,0 +1,15 @@
+Live GitHub contribution watcher evidence
+URL: https://github.com/omacom/omarchy/pull/13212
+Poll output:
+contribution-wake: check: contributions review-bot-live 500d628d7f3d3a847851bdd6f028eee4f97a8d3afcb22bb6510ada06f463999e
+contribution-wake: check: contributions review-bot-live a044c1c0d2e7f24afd21eeb15fb35d852c39ca093c1471d734d5ff744d354958
+contribution-wake: check: contributions review-bot-live 9c54864b2fa435cecff8a20e446bd8f9d3644a57a1c98db1b40b1f728fc9a45c
+contribution-wake: check: contributions review-bot-live d4f9791061e02b11b4f568fe62391aa78b4a1e5372304ab59f7d03f767596b96
+contribution-wake: check: contributions review-bot-live 02b776b883ba557c8a7fb8158680abfa03c4a1206f710135025eebf5867bbae3
+contribution-wake: check: contributions review-bot-live 17efdc268f3fb8bb236af8823b228ff76a9243ddbc268b1165470b1fdc8652ac
+contribution-wake: check: contributions review-bot-live 19460d12a2997878ad06315d2151e8a6b61f2c33729174bf602fccd51ee3d6b2
+contribution-wake: check: contributions review-bot-live 70029e135cf0c93fde93dc3772361f728f11db8a26d7c9d10e1dc99e0c179ffe
+contribution-wake: check: contributions review-bot-live b476c7c905f0c20da1e3b3b7fe03ea8e8284e8bc47e77cef4dec68f9ad8bee9c
+contribution-wake: check: contributions review-bot-live 13088fddc0cb80d3bed0b186d57e806c8aac3250b5f8be763386fb9ec508140c
+Matched pending signal:
+{"task":"review-bot-live","url":"https://github.com/omacom/omarchy/pull/13212","type":"review-comment","source":"https://github.com/omacom/omarchy/pull/13212#discussion_r4308149471","author":"greptile-apps[bot]","review_bot":true,"token":"review-comment:4308149471:2026-10-18T18:17:59Z:"}
