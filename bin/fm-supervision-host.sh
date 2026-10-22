@@ -1204,7 +1204,7 @@ while :; do
 
   # Handled: park on the successor.
   if ! fm_recovery_marker_handling_settled "$STATE/.watcher-down"; then
-    log_line "handling-settle-failed\tturn=$LAST_TURN\tsuccessor=$SUCCESSOR_PID"
+    log_line "handling-settle-failed	turn=$LAST_TURN	successor=$SUCCESSOR_PID"
   fi
   ARM_PID=$SUCCESSOR_PID
   ARM_OUT=$SUCCESSOR_OUT
