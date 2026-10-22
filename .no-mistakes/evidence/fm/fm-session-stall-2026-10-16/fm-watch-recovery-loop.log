@@ -1,8 +1,4 @@
-T2_WATCH_OUTPUT=signal: /tmp/fm-watch-recovery-loop.FBl3R8/recovery-gap-successor/state/crew.status 
-T2_QUEUE_ROW=1792628823	2	signal	crew.status	signal: /tmp/fm-watch-recovery-loop.FBl3R8/recovery-gap-successor/state/crew.status
+COMMAND: bash tests/fm-watch-recovery-loop.test.sh
 ok - a resurfacing handling successor stays alive and supervises instead of going blind
 ok - a handling successor resurfaces a row appended during startup
-T1_MESSAGES=1
-T1_LOCK_PID=2743704
-T1_MARKER=announced:downtime:seed.1.aaa
 ok - unacknowledged recovery is announced at most once per generation and the successor stays alive
