@@ -59,6 +59,9 @@ FAKE_CLAUDE="$FAKEBIN/claude"
 #               error the latch counts)
 #   hang        before anything else, start a descendant in a process group of
 #               its own, then block
+#   hold-marker the same as handle, but before the result a helper takes the
+#               recovery-marker lock for a few seconds, so the host's handled-
+#               turn settle is still waiting for it (holding the queue lock)
 STUB="$TMP_ROOT/engine-stub"
 cat > "$STUB" <<'SH'
 #!/usr/bin/env bash
@@ -92,7 +95,7 @@ verdict=routine
 [ "$mode" != go-away ] || verdict=captain
 case "$mode" in
   fail) exit 3 ;;
-  handle|captain|captain-close-before-return|held|captain-held|hold-lease|return|return-silent|return-fail|return-fail-silent|return-many|return-lookup-fail|return-first|noack|emptyresult|go-away)
+  handle|captain|captain-close-before-return|held|captain-held|hold-lease|hold-marker|return|return-silent|return-fail|return-fail-silent|return-many|return-lookup-fail|return-first|noack|emptyresult|go-away)
     case "$mode" in held|captain-held) read -r _ < "$FM_HOME/stub-release" ;; esac
     [ "$mode" != return-first ] || "$FM_REPO/bin/fm-afk-contract.sh" archive >> "$FM_HOME/engine-return.log" 2>&1
     [ "$mode" != go-away ] || "$FM_REPO/bin/fm-afk-contract.sh" enter --words 'gone mid-turn' >> "$FM_HOME/engine-return.log" 2>&1
@@ -141,6 +144,20 @@ case "$mode" in
     case "$mode" in return-fail|return-fail-silent) exit 3 ;; esac
     [ "$mode" != return-first ] || sleep "$FM_TEST_STUB_MAX_BLOCK_SECONDS"
     [ "$mode" != emptyresult ] || { printf '{}\n'; exit 0; }
+    if [ "$mode" = hold-marker ]; then
+      perl -e 'setpgrp(0, 0); exec @ARGV' bash -c '
+        . "$1"
+        fm_lock_acquire_wait "$2" || exit 1
+        : > "$3"
+        sleep 3
+        fm_lock_release "$2"' _ "$FM_REPO/bin/fm-wake-lib.sh" "$STATE/.watcher-down.lock" "$FM_HOME/marker-held" \
+        >/dev/null 2>&1 </dev/null &
+      i=0
+      while [ ! -e "$FM_HOME/marker-held" ] && [ "$i" -lt 100 ]; do
+        sleep 0.05
+        i=$((i + 1))
+      done
+    fi
     result
     ;;
   noreport) result ;;
@@ -903,6 +920,30 @@ test_attended_routine_wake_is_handled_on_the_engine_and_stays_off_main() {
   drained=$(FM_HOME="$home" "$FAKE_CLAUDE" -c '"$0" 2>&1' "$ROOT/bin/fm-wake-drain.sh")
   assert_not_contains "$drained" "[seq 1]" "a routine outcome must be listed only once"
   pass "host: an attended wake the branch may take is handled on the engine, and its routine outcome never wakes main"
+}
+
+# A TERM that lands just after a handled wake, while the host settles its
+# successor handoff under the queue and marker locks, must not leave the host
+# waiting in its own exit cleanup on the queue lock it still holds: that wedged
+# the host (and every later queue append) instead of exiting.
+test_host_stopped_right_after_a_handled_wake_exits_and_frees_the_queue() {
+  local home pid
+  home=$(make_home handled-then-term attended)
+  echo hold-marker > "$home/stub-mode"
+  start_host "$home"
+  wait_until 150 watcher_live "$home" || fail "handled then TERM: the host never started a watcher cycle"
+  append_status "$home" 'step one'
+  wait_until 250 handled_at_least "$home" 1 \
+    || fail "handled then TERM: the wake was not handled on the engine: $(cat "$home/state/.supervision-host.log")"
+  pid=$(awk -F '\t' '$1 == "host" { print $2; exit }' "$home/state/.supervision-host")
+  [ -n "$pid" ] || fail "fixture: no host record after the handled wake"
+  kill -TERM "$pid" 2>/dev/null || true
+  wait_until 100 bash -c '! kill -0 "$1" 2>/dev/null' _ "$pid" \
+    || fail "handled then TERM: the host did not exit within 10s of TERM after a handled wake"
+  FM_HOME="$home" timeout 10 bash -c '. "$1"; fm_wake_append check probe "check: probe"' _ "$ROOT/bin/fm-wake-lib.sh" \
+    || fail "handled then TERM: the stopped host left the wake queue lock held"
+  stop_home_processes "$home"
+  pass "host: a host stopped right after a handled wake exits and leaves the wake queue usable"
 }
 
 test_attended_captain_outcome_reaches_main_through_branch_outcomes() {
@@ -3156,6 +3197,7 @@ test_branch_outcomes_keep_an_unshown_outcome_until_acknowledged
 test_branch_outcomes_keep_a_drain_presented_outcome_across_a_switch_to_pi
 test_branch_outcomes_keep_a_drain_presented_outcome_across_an_index_repair
 test_attended_routine_wake_is_handled_on_the_engine_and_stays_off_main
+test_host_stopped_right_after_a_handled_wake_exits_and_frees_the_queue
 test_attended_captain_outcome_reaches_main_through_branch_outcomes
 test_captain_leaving_mid_turn_keeps_its_captain_outcome_for_the_return
 test_quiet_record_without_its_daemon_is_a_present_captain

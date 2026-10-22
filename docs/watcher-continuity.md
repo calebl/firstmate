@@ -198,6 +198,7 @@ It enters its poll loop immediately and keeps scanning signals, stale panes, and
 After the supervision host finishes a handled turn, it settles the successor handoff under the durable-queue and recovery-marker locks.
 Any row left for main then becomes a recoverable downtime episode, including one appended after the predecessor closed but before the successor initialized or the host confirmed its handoff.
 The successor closes once with the recovery wake only while that row is still queued; this is how a captain inbox note reaches main during handling-successor startup or while the host is parked on the handled wake's successor.
+When the host instead hands the accepted close back to main and leaves that successor running, it republishes the episode as announced downtime, because the close it hands back is that episode's delivery; the successor therefore does not announce it again, while a later durable append still opens a pending episode it recovers.
 
 ### Manual recovery and other harnesses
 
