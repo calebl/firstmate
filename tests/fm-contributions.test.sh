@@ -273,7 +273,7 @@ test_review_bot_inline_wake() {
 }
 
 test_review_bot_allowlist_is_configurable() {
-  local home config out
+  local home config out token
   home=$(new_home review-bot-config)
   config=review-config
   forge_home "$home"
@@ -293,7 +293,17 @@ test_review_bot_allowlist_is_configurable() {
   out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" pending)
   printf '%s' "$out" | jq -e 'length == 1 and .[0].author == "custom-review[bot]"' >/dev/null \
     || fail "the armed check did not retain its configured review-bot allowlist: $out"
-  pass 'the armed check retains its configured review-bot allowlist'
+  token=$(printf '%s' "$out" | jq -er '.[0].token') || fail 'the configured review-bot signal had no token'
+  with_home "$home" "$ROOT/bin/fm-contributions.sh" ack delivery https://github.com/o/r/pull/8 "$token" >/dev/null \
+    || fail 'the configured review-bot signal could not be acknowledged'
+  : > "$home/$config/contribution-review-bots"
+  registered_checks "$home" >/dev/null
+  printf 'custom-review[bot]\n' > "$home/$config/contribution-review-bots"
+  registered_checks "$home" >/dev/null
+  out=$(with_home "$home" "$ROOT/bin/fm-contributions.sh" pending)
+  printf '%s' "$out" | jq -e 'length == 0' >/dev/null \
+    || fail "an acknowledged review-bot signal returned after an allowlist toggle: $out"
+  pass 'the armed allowlist is stable across working directories and policy toggles'
 }
 
 test_missing_lane_remains_missing() {

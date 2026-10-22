@@ -641,7 +641,7 @@ poll() {
           | ($due | map(.key)) as $due_keys
           | $old + {checked_at:$now,error:null,
             observation:($o + {absent_checks:((($old.observation.absent_checks // []) + [($old.observation.checks // [])[] | .name]) - [$o.checks[].name] | unique)}),
-            seen:($events | map(.token)),
+            seen:((($old.seen // []) + ($events | map(.token))) | unique),
             pending:((($old.pending // []) + $arrived
                 | map(select(.type != "unanswered" or (.thread as $k | ($live | index($k)) != null and ($due_keys | index($k)) == null))))
               + [$due[] | reraise_event(.; $epoch; $now)] | unique_by(.token))}
