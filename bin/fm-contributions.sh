@@ -127,10 +127,10 @@
 # the absolute effective config directory, so later polls keep the same bot
 # allowlist regardless of their working directory or ambient override.
 # With it set, acknowledging a signal never ends tracking of its thread. On an
-# open pull request, each maintainer inline review comment and each maintainer
+# open pull request, each admitted inline review comment and each admitted
 # review in state CHANGES_REQUESTED is an unanswered thread until the
 # contribution author replies or the thread is resolved. Each inline comment is
-# its own thread, keyed by its comment id, so two maintainer comments in one
+# its own thread, keyed by its comment id, so two admitted comments in one
 # conversation raise two wakes. Plain issue comments and other reviews stay
 # one-shot signals and are never raised again. An inline comment is answered by
 # an author reply in its own thread, a review requesting changes by any later
@@ -138,7 +138,8 @@
 # DISMISSED review from the same reviewer. A review requesting changes with an
 # empty body is not tracked, because its inline threads carry it. The record
 # keeps one threads[] entry per unanswered thread (key, source, author, at,
-# raised). Once a thread is FM_CONTRIBUTIONS_REPLY_AGE seconds old, poll adds
+# raised, plus review_bot:true for a configured bot). Once a thread is
+# FM_CONTRIBUTIONS_REPLY_AGE seconds old, poll adds
 # one pending "unanswered" signal and a wake whose text names the thread's URL
 # and its age: "check: contributions <task> <key> unanswered <url> <age>". The
 # same thread is raised again after every further reply age, whatever the
