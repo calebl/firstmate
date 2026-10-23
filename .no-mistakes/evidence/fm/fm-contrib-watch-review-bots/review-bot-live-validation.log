@@ -1,0 +1,10 @@
+Scenario: review-bot watching remains opt-in by default
+target_pending_without_config=0
+
+Scenario: configured Greptile finding reaches the owning home via persisted relative config
+target_signal=[{"author":"greptile-apps[bot]","source":"https://github.com/omacom/omarchy/pull/13212#discussion_r4308149471","type":"review-comment","review_bot":true,"body":"<a href=\"#\"><img alt=\"P2\" src=\"https://greptile-static-assets.s3.amazonaws.com/badges/p2.svg?v=9\" align=\"top\"></a> **Unnamed buttons pass the check**\n\nThe naming lint skips any `Button` whose explicit `text` is not a glyph, including `text: \"\"`. Thus `Button { iconText: \"\\ue900\"; text: \"\" }` passes without a name, even though `Button.accessibleName` resolves to an empty string. This leaves a gap in the check meant to catch unnamed controls for screen-reader users.\n\nOnly skip buttons with non-emp"}]
+projected_reason=incoming review-bot finding needs triage
+wake_output=
+
+Scenario: acknowledgement survives allowlist removal and restoration
+acknowledged_target_pending_after_toggle=0
