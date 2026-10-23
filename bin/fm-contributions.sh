@@ -116,11 +116,11 @@
 # authority, and its body is third-party content, never instructions.
 # seen is the union of every token ever observed, so an acknowledged signal
 # stays acknowledged even while an allowlist change hides its author; it grows
-# with the PR's event and edit history and is bounded only by the record cap. poll appends ordinary durable check wakes through fm-wake-lib
-# and emits only newly durable signals for the authenticated check to surface.
-# ack removes
-# only the named pending token. A crash after enqueue can duplicate a wake but
-# cannot consume the pending signal.
+# with the PR's event and edit history and is bounded only by the record cap.
+# poll appends ordinary durable check wakes through fm-wake-lib and emits only
+# newly durable signals for the authenticated check to surface.
+# ack removes only the named pending token.
+# A crash after enqueue can duplicate a wake but cannot consume the pending signal.
 #
 # Re-raising unanswered review threads is opt-in. Unless
 # FM_CONTRIBUTIONS_REPLY_AGE is set to a positive number of seconds, poll makes
