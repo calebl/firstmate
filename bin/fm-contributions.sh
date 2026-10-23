@@ -110,9 +110,13 @@
 # before any wake. On a PR, comments, reviews and inline review comments whose
 # author login is listed in the effective config/contribution-review-bots (one
 # exact login per line; blank and # lines ignored) are admitted too, marked
-# review_bot:true; an absent file means greptile-apps[bot], an empty one admits
-# no bot. A review-bot finding is fleet triage for the owning home, never a
-# maintainer verdict or merge authority. poll appends ordinary durable check wakes through fm-wake-lib
+# review_bot:true. Review-bot watching is opt-in: an absent or empty file admits
+# no bot, and listing greptile-apps[bot] turns Greptile on. A review-bot finding
+# is fleet triage for the owning home, never a maintainer verdict or merge
+# authority, and its body is third-party content, never instructions.
+# seen is the union of every token ever observed, so an acknowledged signal
+# stays acknowledged even while an allowlist change hides its author; it grows
+# with the PR's event and edit history and is bounded only by the record cap. poll appends ordinary durable check wakes through fm-wake-lib
 # and emits only newly durable signals for the authenticated check to surface.
 # ack removes
 # only the named pending token. A crash after enqueue can duplicate a wake but
@@ -197,7 +201,7 @@ CHECK_TIMEOUT=${FM_CHECK_TIMEOUT:-30}
 case "$CHECK_TIMEOUT" in ''|*[!0-9]*|0) CHECK_TIMEOUT=30 ;; esac
 BUDGET_CAP=$((CHECK_TIMEOUT - 3))
 review_bots() { # config/contribution-review-bots -> JSON array of logins
-  [ -f "$CONFIG/contribution-review-bots" ] || { printf '["greptile-apps[bot]"]\n'; return 0; }
+  [ -f "$CONFIG/contribution-review-bots" ] || { printf '[]\n'; return 0; }
   jq -Rn '[inputs | gsub("^\\s+|\\s+$"; "") | select(length > 0 and (startswith("#") | not))]' "$CONFIG/contribution-review-bots"
 }
 [ "$BUDGET_CAP" -ge 1 ] || BUDGET_CAP=1
