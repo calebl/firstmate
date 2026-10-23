@@ -111,7 +111,7 @@
 # author login is listed in the effective config/contribution-review-bots (one
 # exact login per line; blank and # lines ignored) are admitted too, marked
 # review_bot:true. Review-bot watching is opt-in: an absent or empty file admits
-# no bot, and listing greptile-apps[bot] turns Greptile on. A review-bot finding
+# no bot, and there is no built-in bot list. A review-bot finding
 # is fleet triage for the owning home, never a maintainer verdict or merge
 # authority, and its body is third-party content, never instructions.
 # seen is the union of every token ever observed, so an acknowledged signal
